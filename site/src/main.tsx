@@ -53,8 +53,7 @@ function App() {
 
 function Masthead({ status }: { status: SourceStatus }) {
   const [busy, setBusy] = React.useState(false);
-  const { index, where, config } = status;
-  const repo = config?.repo ?? null;
+  const { index, repo } = status;
 
   const refresh = () => {
     setBusy(true);
@@ -72,15 +71,11 @@ function Masthead({ status }: { status: SourceStatus }) {
         <Stat
           label="source"
           value={sourceLabel(status)}
-          tone={where.kind === "live" ? "live" : status.error ? "warn" : undefined}
+          tone={status.error ? "warn" : undefined}
         />
         <Stat label="threads" value={countLabel(index)} />
         <Stat label="latest post" value={index?.latest_activity ? stamp(index.latest_activity) : "—"} />
-        <Stat
-          label="checked"
-          value={checkedLabel(status, busy)}
-          tone={status.cooldownUntil ? "warn" : undefined}
-        />
+        <Stat label="read" value={checkedLabel(status, busy)} />
         {status.error && <Stat label="last check" value={status.error} tone="warn" />}
       </div>
 
@@ -151,15 +146,9 @@ function Notes({ status }: { status: SourceStatus }) {
 // ── labels ───────────────────────────────────────────────────────────────────
 
 function sourceLabel(s: SourceStatus): string {
-  if (s.where.kind === "live") {
-    const branch = s.config?.branch ?? "";
-    return `${branch}@${s.where.sha.slice(0, 7)}`;
-  }
-  if (!s.live) return "bundled with the page";
-  // Live is configured and we are not on it: either the branch is not there
-  // yet, or a check failed. Both are worth distinguishing from a viewer that
-  // was never going to update.
-  return s.error ? "bundled (live check failed)" : "bundled (no snapshot branch yet)";
+  // There is one copy: the snapshot that shipped with this deploy. It is only
+  // as fresh as the deploy, which is the honest thing to say about it.
+  return s.error ? "bundled (last read failed)" : "bundled with the page";
 }
 
 function countLabel(index: SourceStatus["index"]): string {
@@ -170,11 +159,8 @@ function countLabel(index: SourceStatus["index"]): string {
 
 function checkedLabel(s: SourceStatus, busy: boolean): string {
   if (busy || s.checking) return "now";
-  if (s.cooldownUntil && s.cooldownUntil > Date.now()) {
-    return `rate-limited, retrying ${ago(s.cooldownUntil)}`;
-  }
   if (!s.checkedAt) return "—";
-  return `${ago(s.checkedAt)} · every ${s.config?.pollSeconds ?? "—"}s`;
+  return ago(s.checkedAt);
 }
 
 /** `2026-08-20T16:28:40.000000Z` → `08-20 16:28`, as `ForumView` renders times. */
@@ -212,34 +198,6 @@ function useSourceStatus(): SourceStatus {
   }, []);
   return status;
 }
-
-/**
- * Keep this viewer's own query parameters in the address bar.
- *
- * `ForumView` rewrites the URL to `pathname + #forum/<id>` whenever the
- * selection changes, which drops `?repo=` and `?branch=` — so a link that
- * points the viewer at another forum would work until the reader's first
- * reload and not after it. This puts the search string back on any rewrite that
- * did not set one of its own, and leaves the fragment, which is the part
- * `ForumView` is actually managing, alone.
- *
- * Wrapping the browser API rather than editing the vendored view: the view is
- * unmodified on purpose, and this is the site's concern, not the forum's.
- */
-function keepQueryInUrl(): void {
-  const search = window.location.search;
-  if (!search) return;
-  const replaceState = history.replaceState.bind(history);
-  history.replaceState = (state: unknown, title: string, url?: string | URL | null) => {
-    if (typeof url === "string" && !url.includes("?")) {
-      const hash = url.indexOf("#");
-      url = hash === -1 ? url + search : url.slice(0, hash) + search + url.slice(hash);
-    }
-    replaceState(state, title, url);
-  };
-}
-
-keepQueryInUrl();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

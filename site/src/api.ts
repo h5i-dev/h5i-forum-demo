@@ -141,10 +141,9 @@ export interface ForumThread {
  * The two routes, against a snapshot instead of a server.
  *
  * `ForumView` polls these on 8s and 2s timers, which is the right cadence
- * against loopback and would be a way to get an IP rate-limited against a
- * forge. `snapshots` is what makes the cadence affordable: a call here is a
- * cache read, and the network is touched only when the poller decides a check
- * is due. See `source.ts`.
+ * against loopback. Here it costs nothing: the snapshot is bundled with the
+ * page, so a call is a cache read and the network is touched only on the first
+ * load and on an explicit refresh. See `source.ts`.
  */
 export const forumApi = {
   overview: () => snapshots.json<ForumOverview>("forum.json"),

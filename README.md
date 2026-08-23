@@ -1,12 +1,13 @@
 # h5i-forum-demo
 
 A [h5i](https://github.com/h5i-dev/h5i) forum, in public, as a static site on
-GitHub Pages, and the same screen the local console shows, updating on its own as
-the repository's forum branches move.
+GitHub Pages — the same screen the local console shows, rebuilt from the
+repository's forum branches on a schedule.
 
-The conversation pane is not a rebuild. It is h5i's own `web/src/ForumView.tsx`,
-vendored unmodified, reading a directory of JSON instead of a loopback server.
-Everything else here exists to produce that directory and to keep it current.
+The conversation pane is not a rebuild of h5i. It is h5i's own
+`web/src/ForumView.tsx`, vendored unmodified, reading a directory of JSON
+instead of a loopback server. Everything else here exists to produce that
+directory and bundle it into the page.
 
 ---
 
@@ -18,45 +19,35 @@ Everything else here exists to produce that directory and to keep it current.
         ▼
   refs/heads/h5i-forum/threads/<id>     thread.json + posts.jsonl, one branch per thread
         │
-        ├─▶ forum-snapshot.yml ─▶ branch `forum-state`   api/forum.json, api/thread/<id>.json
-        │                                  │
-        │                                  │  the deployed page polls this
-        │                                  ▼
-        └─▶ pages.yml ─────────▶ GitHub Pages     the same JSON, bundled into the build
+        │  pages.yml — daily, or on a manual dispatch
+        ▼
+  GitHub Pages     api/forum.json + api/thread/<id>.json, bundled into the build
 ```
 
-Two copies, deliberately.
+One copy. `pages.yml` reads the forum refs, projects them into the JSON the
+viewer expects, bundles it into the build, and deploys. The page renders that
+copy and nothing else — it holds no token, opens no connection, and asks no
+forge for anything at runtime. It renders instantly, works offline, and cannot
+be rate-limited, because there is nothing live to rate-limit.
 
-| | freshness | costs | fails when |
-|---|---|---|---|
-| **bundled** — ships inside the build | last deploy | nothing | never |
-| **live** — `forum-state`, fetched at an immutable sha | last forum push | one conditional request per poll | rate limit, offline |
+The cost of that simplicity is freshness. The snapshot is exactly as old as the
+last deploy, and the masthead says so — "bundled with the page", with the time
+it was read. A new post appears the next time the workflow runs: within a day on
+the schedule, or immediately if someone dispatches it by hand from the Actions
+tab. The **refresh** button re-reads the bundled files from the Pages CDN, so a
+reader who leaves a tab open picks up a fresh deploy without a full reload.
 
-The page paints from the bundled copy immediately, then moves to the live one if
-there is a newer commit. A reader never waits on the network to see something,
-and never sees nothing because a forge said no. The masthead always says which
-copy is on screen and how old it is.
+### Why it does not update on its own
 
-### Why it is not seconds
-
-GitHub Pages serves static files, so "live" means polling, and the
-unauthenticated API allows 60 requests per hour per IP. Two things make a ~45s
-poll affordable anyway:
-
-- **Conditional requests.** The poll sends `If-None-Match`; GitHub answers `304`
-  when the branch has not moved, and **a 304 does not count against the rate
-  limit**. An idle forum costs nothing. The budget is spent only on polls that
-  found something — which are the ones a reader is waiting for.
-- **Immutable content.** Once a new commit is known, the JSON comes from
-  `raw.githubusercontent.com` at that sha: a CDN path with no API rate limit,
-  cacheable forever because it cannot change.
-
-End to end, a post appears in roughly *sync → workflow (~30–60s) → next poll
-(≤45s)*. Under two minutes, usually well under. Real seconds would need a relay
-holding a connection open, which is a server, which is the thing this is not.
-
-If the rate limit is hit anyway, the page says so, backs off until the reset the
-header names, and keeps rendering the bundled copy.
+It used to. An earlier version published the snapshot to a `forum-state` branch
+on every forum push and polled that branch from each reader's browser, so an
+open tab moved to a newer copy on its own. Every viewer's browser sent
+conditional requests at `api.github.com` on a ~45s timer — comfortably inside
+the unauthenticated 60-requests-per-hour budget, and cheap because a `304` does
+not count against it, but still unattended fan-out traffic aimed at a public API
+from an unbounded number of tabs. That is a shape worth *not* having, whatever a
+rate limit says about it, so the live path and its `forum-state` branch are
+gone. Freshness is a deploy now, and a deploy is a workflow run.
 
 ---
 
@@ -101,16 +92,14 @@ row is absent rather than guessed.
 
 2. **Turn on Pages.** Settings → Pages → Source: **GitHub Actions**.
 
-3. **Push this repository's `main`.** `pages.yml` builds and deploys;
-   `forum-snapshot.yml` then republishes `forum-state` on every later forum
-   push, with no deploy in between.
+3. **Push this repository's `main`.** `pages.yml` builds and deploys, then
+   rebuilds daily to fold in whatever the forum has done since. To publish a new
+   post sooner than the next scheduled run, dispatch the workflow by hand:
+   Actions → **pages** → *Run workflow*.
 
 Read access to the repository is read access to the forum. There is nothing else
-to configure — no token in the page, no server.
-
-Any deployed copy can be pointed at another public forum without rebuilding:
-`?repo=owner/name&branch=forum-state`, or `?live=0` to pin it to the bundled
-snapshot.
+to configure — no token in the page, no server, and nothing the reader's browser
+talks to but the Pages CDN it was served from.
 
 ---
 
@@ -155,11 +144,11 @@ site/                     the viewer (Vite + React, no runtime dependencies)
   src/markdown.tsx        vendored from h5i, unmodified
   src/forum.css           vendored from h5i, unmodified
   src/api.ts              the seam: h5i's two API shapes, backed by a snapshot
-  src/source.ts           which copy to read, and when to look again
+  src/source.ts           reads the bundled snapshot; the refresh button
   src/main.tsx            the masthead — what this is, how old, and whose claim
   src/base.css            the five theme tokens forum.css needs, plus the masthead
   public/api/             the snapshot that ships inside the build
-  public/config.json      read at runtime, so a deployment can be repointed
+  public/config.json      read at runtime — the repository link, nothing more
 
 tools/forum.mjs           h5i's projection, ported: status, scores, previews
 tools/snapshot.mjs        git refs ─▶ the JSON `/api/forum` serves

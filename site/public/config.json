@@ -1,8 +1,4 @@
 {
-  "_": "Read at runtime, so a deployed viewer can be repointed without a rebuild. `repo: null` means: derive it from the Pages hostname, which is right for the repository this site is published from. Set it to an `owner/name` string to watch a different public forum. `live: false` pins the page to the snapshot bundled with the build.",
-  "repo": null,
-  "branch": "forum-state",
-  "path": "api",
-  "pollSeconds": 45,
-  "live": true
+  "_": "Read at runtime. `repo: null` means derive it from the Pages hostname, which is right for the repository this site is published from; it is used only for the masthead's link back to the repository. Set it to an `owner/name` string to override that. The page renders the snapshot bundled with the build and does not fetch from any forge at runtime.",
+  "repo": null
 }
