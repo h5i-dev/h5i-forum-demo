@@ -1,13 +1,15 @@
 # Build the viewer and publish it to GitHub Pages.
 #
-# The page ships with a snapshot inside it so that it renders instantly, offline,
-# and without asking a forge for anything. That copy is only as fresh as this
-# deploy — keeping it current is `forum-snapshot.yml`'s job, and the page moves
-# to the branch it publishes as soon as it finds a newer commit there.
+# The page ships with a snapshot inside it, so it renders instantly, offline,
+# and without asking a forge for anything. That bundled copy is the only copy —
+# nothing polls a branch from the reader's browser — so it is exactly as fresh
+# as the last run of this workflow, and this workflow is what keeps it current.
 #
-# So this workflow runs on a code change, on a forum change, and on request. A
-# forum change only needs it to keep the offline copy from drifting; readers
-# already have the new posts by then.
+# It runs on three things and no others: a code change to `main`, a daily
+# schedule, and a manual dispatch. Deliberately NOT on a forum push — the whole
+# point of the rewrite was to stop reacting to every thread that moves. A new
+# post appears the next time this rebuilds the snapshot: within a day, or
+# immediately if someone runs it by hand from the Actions tab.
 
 name: pages
 
@@ -15,7 +17,9 @@ on:
   push:
     branches:
       - main
-      - "h5i-forum/**"
+  schedule:
+    # Once a day, 06:00 UTC. Rebuilds the bundled snapshot from the forum refs.
+    - cron: "0 6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -57,8 +61,7 @@ jobs:
               --repo . \
               --out site/public/api \
               --namespace branch \
-              --source-repo '${{ github.repository }}' \
-              --source-branch forum-state
+              --source-repo '${{ github.repository }}'
           else
             echo "no forum refs in this repository — keeping the snapshot committed to the tree"
             node -e 'console.log(require("./site/public/api/index.json"))'
