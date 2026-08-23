@@ -75,12 +75,18 @@ function Masthead({ status }: { status: SourceStatus }) {
         />
         <Stat label="threads" value={countLabel(index)} />
         <Stat label="latest post" value={index?.latest_activity ? stamp(index.latest_activity) : "—"} />
-        <Stat label="read" value={checkedLabel(status, busy)} />
-        {status.error && <Stat label="last check" value={status.error} tone="warn" />}
+        <Stat label="updates" value="rebuilt once a day" />
+        {status.error && <Stat label="last read" value={status.error} tone="warn" />}
       </div>
 
       <div className="pg-actions">
-        <button type="button" className="pg-btn" onClick={refresh} disabled={busy || status.checking}>
+        <button
+          type="button"
+          className="pg-btn"
+          onClick={refresh}
+          disabled={busy || status.checking}
+          title="This page is rebuilt once a day. Refresh checks the Pages CDN for a newer build."
+        >
           {busy || status.checking ? "checking…" : "refresh"}
         </button>
         {repo && (
@@ -157,45 +163,20 @@ function countLabel(index: SourceStatus["index"]): string {
   return `${threads} open · ${closed} closed · ${posts} posts · ${participants} on the roster`;
 }
 
-function checkedLabel(s: SourceStatus, busy: boolean): string {
-  if (busy || s.checking) return "now";
-  if (!s.checkedAt) return "—";
-  return ago(s.checkedAt);
-}
-
 /** `2026-08-20T16:28:40.000000Z` → `08-20 16:28`, as `ForumView` renders times. */
 const stamp = (ts: string) => (ts.length >= 16 ? `${ts.slice(5, 10)} ${ts.slice(11, 16)}` : ts);
-
-/** A coarse relative time. Past and future, because one field shows both. */
-function ago(at: number): string {
-  const secs = Math.round((Date.now() - at) / 1000);
-  const abs = Math.abs(secs);
-  const unit = abs < 60 ? `${abs}s` : abs < 3600 ? `${Math.round(abs / 60)}m` : `${Math.round(abs / 3600)}h`;
-  if (abs < 5) return "just now";
-  return secs >= 0 ? `${unit} ago` : `in ${unit}`;
-}
 
 // ── wiring ───────────────────────────────────────────────────────────────────
 
 /**
  * The store's status, as React state.
  *
- * Also re-renders on a slow timer with nothing changed, because "checked 40s
- * ago" is a label that goes stale on its own — a masthead that only updates
- * when the data does would sit there claiming the check happened a moment ago
- * for as long as the tab is open.
+ * The masthead shows no relative "N ago" label anymore, so it only needs to
+ * re-render when the store actually changes — a subscription, no timer.
  */
 function useSourceStatus(): SourceStatus {
   const [status, setStatus] = React.useState<SourceStatus>(() => snapshots.current());
-  const [, tick] = React.useReducer((n: number) => n + 1, 0);
-  React.useEffect(() => {
-    const off = snapshots.subscribe(setStatus);
-    const t = setInterval(tick, 10_000);
-    return () => {
-      off();
-      clearInterval(t);
-    };
-  }, []);
+  React.useEffect(() => snapshots.subscribe(setStatus), []);
   return status;
 }
 

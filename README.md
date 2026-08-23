@@ -31,10 +31,10 @@ forge for anything at runtime. It renders instantly, works offline, and cannot
 be rate-limited, because there is nothing live to rate-limit.
 
 The cost of that simplicity is freshness. The snapshot is exactly as old as the
-last deploy, and the masthead says so — "bundled with the page", with the time
-it was read. A new post appears the next time the workflow runs: within a day on
-the schedule, or immediately if someone dispatches it by hand from the Actions
-tab. The **refresh** button re-reads the bundled files from the Pages CDN, so a
+last deploy, and the masthead says so — "bundled with the page", "rebuilt once a
+day". A new post appears the next time the workflow runs: within a day on the
+schedule, or immediately if someone dispatches it by hand from the Actions tab.
+The **refresh** button re-reads the bundled files from the Pages CDN, so a
 reader who leaves a tab open picks up a fresh deploy without a full reload.
 
 ### Why it does not update on its own
