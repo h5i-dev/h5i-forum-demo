@@ -1,0 +1,100 @@
+# Republish the forum snapshot whenever a thread ref moves.
+#
+# `h5i forum sync --branch-refs` pushes `refs/heads/h5i-forum/threads/<id>`, one
+# branch per thread. This turns those into the JSON the viewer reads and puts it
+# on `forum-state`, which the deployed page polls — so a post shows up without
+# rebuilding or redeploying the site. That is the whole reason this is a
+# separate workflow from the Pages one: a deploy takes a minute and happens on
+# its own schedule, and a conversation should not wait for it.
+#
+# Nothing here builds the site. Nothing here touches `main`.
+
+name: forum snapshot
+
+on:
+  push:
+    branches:
+      - "h5i-forum/**"
+  workflow_dispatch:
+
+# One writer at a time. Two syncs landing together would otherwise race to
+# push `forum-state`, and the loser's snapshot — which is the newer one — would
+# be the one that gets rejected.
+concurrency:
+  group: forum-state
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      # The tools live on the default branch; the data lives on the thread
+      # branches. This job needs both, and the branch that triggered it is the
+      # one thing it does not need checked out.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Fetch the forum refs
+        # `actions/checkout` leaves these under `refs/remotes/origin/`, and the
+        # snapshot tool reads `refs/heads/h5i-forum/*` — the names h5i itself
+        # publishes under. Map them back rather than teaching the tool a second
+        # layout that only CI ever sees.
+        run: |
+          git fetch --no-tags origin '+refs/heads/h5i-forum/*:refs/heads/h5i-forum/*'
+          git for-each-ref --format='%(refname)' refs/heads/h5i-forum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build the snapshot
+        run: |
+          node tools/snapshot.mjs \
+            --repo . \
+            --out "$RUNNER_TEMP/snap/api" \
+            --namespace branch \
+            --source-repo '${{ github.repository }}' \
+            --source-branch forum-state
+
+      # Committed with plumbing rather than a checkout, for two reasons. The
+      # tree comparison below is an exact "did the forum change" test — the
+      # snapshot is a pure function of the refs, so an unchanged forum produces
+      # a byte-identical tree and no commit at all. And a first run has no
+      # branch to check out; `commit-tree` with no parent is simply a root
+      # commit, so the orphan case needs no special path.
+      - name: Publish to forum-state
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          # Into a named ref, not FETCH_HEAD: the thread refs were fetched a
+          # step ago and left their own FETCH_HEAD behind, so reading it here
+          # would parent the snapshot onto a conversation.
+          git fetch --no-tags origin '+refs/heads/forum-state:refs/remotes/origin/forum-state' \
+            || echo "no forum-state branch yet"
+          parent=$(git rev-parse --verify --quiet refs/remotes/origin/forum-state || true)
+
+          export GIT_INDEX_FILE="$RUNNER_TEMP/snapshot.index"
+          rm -f "$GIT_INDEX_FILE"
+          # From inside the snapshot directory, so `add -A .` cannot resolve
+          # against the checkout it is being run from.
+          ( cd "$RUNNER_TEMP/snap" && git --git-dir="$GITHUB_WORKSPACE/.git" --work-tree=. add -A . )
+          tree=$(git write-tree)
+
+          if [ -n "$parent" ] && [ "$(git rev-parse "$parent^{tree}")" = "$tree" ]; then
+            echo "forum unchanged — nothing to publish"
+            exit 0
+          fi
+
+          msg="forum snapshot $(git for-each-ref --count=1 --format='%(objectname:short)' 'refs/heads/h5i-forum/threads/*')"
+          commit=$(git commit-tree "$tree" ${parent:+-p "$parent"} -m "$msg")
+          git push origin "$commit:refs/heads/forum-state"
+          echo "published $commit"

@@ -1,0 +1,215 @@
+/* The ground the vendored forum stylesheet stands on.
+ *
+ * `forum.css` is h5i's, unmodified, and it reads five tokens it does not define
+ * — `--bp-border`, `--bp-surface`, `--bp-text`, `--bp-text-dim` and
+ * `--h5-accent` — because in h5i they live in `theme.css` alongside the box
+ * console, which this site does not ship. They are repeated here with h5i's own
+ * values rather than approximated, so the two surfaces cannot drift apart on a
+ * colour.
+ *
+ * Everything else in this file is the masthead, which is this site's and not
+ * h5i's: a hosted viewer has to say what it is looking at and how old that is,
+ * and the console never had to because it was looking at the machine it ran on.
+ * It follows the same rules as the surface below it — hairlines, mono labels,
+ * nothing rounded, and red spent only on a boundary.
+ */
+
+:root {
+  --bp-surface: #0e0e12;
+  --bp-border: #232329;
+  --bp-text: #f4f4f6;
+  --bp-text-dim: #7d7d86;
+  --h5-accent: #ff6258;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono: "SFMono-Regular", "Menlo", "Consolas", "DejaVu Sans Mono",
+    monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #08080b;
+  color: var(--bp-text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* The shell `forum.css` expects: a column with the surface filling what is
+   left. Named as h5i names it, because `.wb-surface`'s rules are in that file. */
+.wb-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ── masthead ─────────────────────────────────────────────────────────────── */
+
+.pg-head {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  gap: 0;
+  border-bottom: 1px solid var(--bp-border);
+  background: var(--bp-surface);
+  flex-wrap: wrap;
+}
+
+.pg-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 14px 0 16px;
+  border-right: 1px solid var(--bp-border);
+}
+.pg-brand b {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--h5-accent);
+}
+.pg-brand span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bp-text-dim);
+}
+
+.pg-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.35rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 1rem;
+  flex-wrap: wrap;
+}
+
+/* A label over a value, which is the shape the rest of the page uses for
+   anything the reader is meant to check rather than read. */
+.pg-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.pg-stat > span:first-child {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #55555e;
+}
+.pg-stat > span:last-child {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #a4a4ae;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pg-stat.is-live > span:last-child {
+  color: #62c98c;
+}
+.pg-stat.is-warn > span:last-child {
+  color: #d6a94e;
+}
+
+.pg-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem;
+}
+
+.pg-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #a4a4ae;
+  background: transparent;
+  border: 1px solid var(--bp-border);
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+.pg-btn:hover:not(:disabled) {
+  color: var(--bp-text);
+  border-color: #3a3a45;
+}
+.pg-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.pg-btn:focus-visible {
+  outline: 1px solid var(--h5-accent);
+  outline-offset: -2px;
+}
+
+/* ── the two things this viewer has to say about itself ───────────────────── */
+
+/* Amber, not red: nothing was refused. It is a caveat about what the page is,
+   and red on this palette means a host refused something. */
+.pg-note {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 0.45rem 1rem;
+  border-bottom: 1px solid var(--bp-border);
+  color: #a4a4ae;
+  background: #0b0b0e;
+}
+.pg-note b {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #55555e;
+  font-weight: 400;
+  flex: none;
+}
+.pg-note.is-demo {
+  color: #d6a94e;
+  background: rgba(214, 169, 78, 0.07);
+  border-left: 2px solid #d6a94e;
+}
+.pg-note.is-demo b {
+  color: #d6a94e;
+}
+
+@media (max-width: 720px) {
+  .pg-brand {
+    border-right: none;
+  }
+  .pg-meta {
+    order: 3;
+    width: 100%;
+    border-top: 1px solid var(--bp-border);
+  }
+  .pg-actions {
+    margin-left: auto;
+  }
+}

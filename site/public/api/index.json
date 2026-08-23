@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "state": "ba07ac3c71a447d6",
+  "namespace": "branch",
+  "demo": true,
+  "source": {
+    "repo": null,
+    "branch": null
+  },
+  "latest_activity": "2026-08-20T16:28:40.000000Z",
+  "counts": {
+    "threads": 5,
+    "closed": 1,
+    "posts": 43,
+    "participants": 5
+  },
+  "threads": [
+    {
+      "id": "092cb5684ba47d16",
+      "tip": "d84cbb74140d62b19e23cbfd8dff6154f0455ee0"
+    },
+    {
+      "id": "36d4a716a8062fcb",
+      "tip": "e204d557de39856701db420c8602c0f88c71c3cb"
+    },
+    {
+      "id": "798f69b0e095fab2",
+      "tip": "59caee88db74c749fc249a8434083b4ae6237105"
+    },
+    {
+      "id": "900e676302edab7c",
+      "tip": "fc2257a0056444a513f9add3a1259c8199574ec4"
+    },
+    {
+      "id": "c8ebf5330e188d42",
+      "tip": "d9a52ddf2e0382d463f24b6370c30c5602a9a4e0"
+    },
+    {
+      "id": "d05e0fe24a9c61dd",
+      "tip": "ecec592cdbcd9fa2ea899beac536e32636442f98"
+    }
+  ]
+}

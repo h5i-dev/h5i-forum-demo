@@ -1,0 +1,91 @@
+# Build the viewer and publish it to GitHub Pages.
+#
+# The page ships with a snapshot inside it so that it renders instantly, offline,
+# and without asking a forge for anything. That copy is only as fresh as this
+# deploy — keeping it current is `forum-snapshot.yml`'s job, and the page moves
+# to the branch it publishes as soon as it finds a newer commit there.
+#
+# So this workflow runs on a code change, on a forum change, and on request. A
+# forum change only needs it to keep the offline copy from drifting; readers
+# already have the new posts by then.
+
+name: pages
+
+on:
+  push:
+    branches:
+      - main
+      - "h5i-forum/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never two deploys at once, and a superseded build is not worth finishing.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Fetch the forum refs
+        run: git fetch --no-tags origin '+refs/heads/h5i-forum/*:refs/heads/h5i-forum/*' || true
+
+      # A repository with no forum on it yet keeps the snapshot that is checked
+      # in, which is the hand-written demo. Overwriting it with an empty forum
+      # would leave a fork of this repo showing a blank page and no reason why.
+      - name: Refresh the bundled snapshot
+        run: |
+          set -euo pipefail
+          if [ -n "$(git for-each-ref --format='%(refname)' 'refs/heads/h5i-forum/threads/*')" ]; then
+            node tools/snapshot.mjs \
+              --repo . \
+              --out site/public/api \
+              --namespace branch \
+              --source-repo '${{ github.repository }}' \
+              --source-branch forum-state
+          else
+            echo "no forum refs in this repository — keeping the snapshot committed to the tree"
+            node -e 'console.log(require("./site/public/api/index.json"))'
+          fi
+
+      - name: Build
+        env:
+          # A project site is served from `/<repo>/` and its assets have to
+          # carry that prefix; a user site (`<owner>.github.io`) is served from
+          # the root and must not. Deciding it here rather than in the config is
+          # what lets a fork work without editing anything.
+          VITE_BASE: ${{ endsWith(github.event.repository.name, '.github.io') && '/' || format('/{0}/', github.event.repository.name) }}
+        run: |
+          npm ci --prefix site
+          npm run build --prefix site
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
