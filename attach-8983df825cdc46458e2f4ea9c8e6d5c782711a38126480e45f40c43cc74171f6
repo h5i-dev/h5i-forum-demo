@@ -1,0 +1,621 @@
+diff --git a/SPEC.md b/SPEC.md
+new file mode 100644
+index 0000000..b551572
+--- /dev/null
++++ b/SPEC.md
+@@ -0,0 +1,90 @@
++# NABLA — corrected specification (one language)
++
++A tiny language in which a program can differentiate its own source and update
++it *while it runs*. The update is an ordinary opcode (`GRAD`) reached by a normal
++program counter, not an external training loop. The loss is an ordinary cell the
++program computes, addressable and overwritable like any other — so objective
++hacking is native, not bolted on.
++
++## Grammar
++
++```
++program    := { line }
++line       := [ label ":" ] [ instr | directive ] [ "#" comment ]
++directive  := "PARAM" name number          # declare a trainable operand immediate
++instr      := "SET" dst operand
++            | "ADD" dst operand operand     # dst = a + b
++            | "SUB" dst operand operand     # dst = a - b
++            | "MUL" dst operand operand     # dst = a * b
++            | "OUT" operand                 # append value to output
++            | "IN"  dst                     # read next input value
++            | "PTR" ("+" | "-")             # data pointer += / -= 1
++            | "JMP" label
++            | "JZ"  operand label           # jump if round(value)==0
++            | "JNZ" operand label           # jump if round(value)!=0
++            | "GRAD"                         # in-band gradient update (see below)
++            | "HALT"
++dst        := name | "*"                    # "*" is the cell at the data pointer
++operand    := number | name | "~"name | "*" # ~name = a trainable PARAM
++```
++
++Variables (`name`) are cells on an unbounded integer-addressed tape, default 0.
++`*` is the cell under the data pointer `DP` (moved by `PTR`). PARAMs are the only
++continuous, differentiable part of a program.
++
++## Execution
++
++The interpreter's ONLY external inputs are `(source, input, max_steps)`. The PC
++starts at 0 and advances by 1 except on taken jumps. Everything a demo needs —
++`eta`, the target, how the loss is built, how many times to iterate, and where
++`GRAD` sits — is written in the program. Convention: cell `E` holds `eta`, cell
++`L` holds the loss; both are set by ordinary instructions.
++
++`GRAD` semantics (the only differentiable opcode): reverse-mode differentiate the
++current value of cell `L` with respect to every PARAM it depends on; for each such
++PARAM, `p := p - E * dL/dp`; then detach the graph. The window is **W=0** — a later
++`GRAD` does not differentiate through an earlier `GRAD`'s update. The update *mask*
++is exactly the set of PARAMs `L` depends on; the program controls it by how it
++wires the loss (dataflow *is* the mask). No opcode identity is ever differentiated:
++under hard execution the structural gradient is 0 almost everywhere, so all
++learning lives in operands (the operand-cell law).
++
++## Export and the hard interpreter
++
++`export(params, grid)` rounds each trained PARAM to `grid` and freezes it. A
++*separate* hard interpreter (`run_hard`) executes with plain floats and treats
++`GRAD` as a no-op; running an exported program there is the deployed, non-learning
++machine. `rounding_gap = soft_loss − hard_loss`, measured (not asserted): for the
++learning demo the soft param 2.79384 exports to 2.8, gap ≈ 0.0025.
++
++## The three programs (same parser, same dispatch loop, text-only differences)
++
++| program        | what it shows                    | trace (verified in `test_nabla.py`)                 |
++|----------------|----------------------------------|-----------------------------------------------------|
++| `learning.nbl` | useful gradient learning         | `a_n = 3(1−0.8^n)`: 0, 0.6, 1.08, 1.464 → 2.8; loss 9 → 0 |
++| `hack.nbl`     | objective hacking (endogenous L) | one extra line `SET T R0`; loss ≡ 0, `a` frozen, target 3 never reached |
++| `erasure.nbl`  | differentiable self-erasure      | `g_n = 0.4^n`: 1, 0.4, 0.16 → 0; exports to an inert program |
++
++## Power ledger (claims that the tests actually back)
++
++- **Discrete core is Turing-complete.** The ISA has crisp branching (`JZ`/`JNZ`/
++  `JMP`) and unbounded memory (`PTR` over an unbounded tape). `compile_bf` reduces
++  Brainfuck — a known universal machine — into NABLA, and
++  `test_turing_completeness_bf_reduction` asserts NABLA output equals a reference
++  Brainfuck run (including a program that reverses its input). This is the *only*
++  basis on which TC is claimed.
++- **The executed differentiable object is bounded.** A single run with GRAD is a
++  finite, piecewise-analytic map of the PARAMs over ≤ `max_steps` instructions; it
++  is not itself a super-Turing device. Keeping export on a grid prevents a
++  surviving real operand from turning the machine into a BSS/super-Turing one.
++- **No claim of unsimulability**, and no higher-order (W≥1) claim: the interpreter
++  is W=0 and every trace above is at W=0.
++
++## Removed vs. the earlier drafts (unused features deleted)
++
++Soft opcode blending, the `softmax`/`tau` execution path, three-way STRUCTURAL vs
++DATA typing, the `kind=` loss selector, the `grad_cell` argument, the operand-`mask`
++argument, and the Python-side `passes` loop are all gone. Loops are in-language
++(`JNZ`), output is an opcode (`OUT`), and there is one dispatch loop for all three
++demos. Nothing here is claimed beyond what `python3 test_nabla.py` reproduces.
++```
+diff --git a/erasure.nbl b/erasure.nbl
+new file mode 100644
+index 0000000..33ec61f
+--- /dev/null
++++ b/erasure.nbl
+@@ -0,0 +1,19 @@
++# SELF-ERASURE: the loss IS the program's own activity, L = R0^2, and GRAD
++# drives the gain operand ~g toward 0.  g *= (1 - 2*eta) each step (eta=0.3 ->
++# x0.4): 1, 0.4, 0.16, ...  The program differentiably deletes its own output;
++# at export ~g rounds to 0 and the ADD becomes inert (behavioural erasure).
++# (Erasing the *opcode* to NOP is not gradient-reachable under hard execution --
++# structural gradient is 0 a.e. -- so erasure lives in the operand, per the
++# operand-cell law.)
++PARAM g 1
++SET C 12
++SET E 0.3
++loop:
++  SET R0 0
++  ADD R0 R0 ~g       # R0 = g   (the program's activity)
++  MUL L R0 R0        # L = activity^2   (self-referential loss)
++  OUT R0
++  GRAD               # g -= E * 2g  ->  g *= (1 - 2E)
++  ADD C C -1
++  JNZ C loop
++HALT
+diff --git a/hack.nbl b/hack.nbl
+new file mode 100644
+index 0000000..7accd54
+--- /dev/null
++++ b/hack.nbl
+@@ -0,0 +1,20 @@
++# OBJECTIVE-HACK: identical to learning.nbl except for one line: `SET T R0`.
++# The target T is an ordinary, addressable cell (endogenous loss, no protected
++# objective).  The program overwrites T with its own output before measuring
++# loss, so L is identically 0, dL/da is 0, a never moves, and the behaviour
++# (R0 = a = 0) never reaches the real target 3.  Goodhart, made literal.
++PARAM a 0
++SET C 12
++SET E 0.1
++SET T 3
++loop:
++  SET R0 0
++  ADD R0 R0 ~a
++  SET T R0           # <-- the hack: retarget the objective onto the output
++  SUB D R0 T
++  MUL L D D          # L = (R0 - R0)^2 = 0
++  OUT R0
++  GRAD               # dL/da = 0  -> a frozen
++  ADD C C -1
++  JNZ C loop
++HALT
+diff --git a/learning.nbl b/learning.nbl
+new file mode 100644
+index 0000000..a7bee6c
+--- /dev/null
++++ b/learning.nbl
+@@ -0,0 +1,16 @@
++# USEFUL LEARNING: fit R0 to target T=3 by gradient on the operand ~a.
++# eta, target, loss, the loop, and GRAD's location all live here in the program.
++PARAM a 0
++SET C 12
++SET E 0.1
++SET T 3
++loop:
++  SET R0 0
++  ADD R0 R0 ~a       # R0 = a
++  SUB D R0 T         # D = R0 - target
++  MUL L D D          # L = D*D   (loss, computed in-language)
++  OUT R0             # observable output this iteration
++  GRAD               # a -= E * dL/da   (in-band update)
++  ADD C C -1
++  JNZ C loop
++HALT
+diff --git a/nabla.py b/nabla.py
+new file mode 100644
+index 0000000..3240180
+--- /dev/null
++++ b/nabla.py
+@@ -0,0 +1,320 @@
++"""NABLA: one tiny differentiable, self-modifying language.
++
++CANONICAL DESIGN (see SPEC.md).  Execution is HARD and SEQUENTIAL: the PC is an
++integer, opcodes are crisp, jumps are crisp.  The ONLY continuous, differentiable
++part of a program is its trainable operand immediates (PARAMs).  GRAD is an
++in-band opcode: when the sequential PC reaches it, it differentiates the loss
++cell L (which the program itself computed, in-language) with respect to every
++PARAM the loss depends on, then steps each PARAM by eta (read from cell E, also
++set in-language) and detaches the graph.  That per-GRAD window is W=0: a later
++GRAD does not differentiate through an earlier GRAD's update.
++
++The differentiable machinery (reverse-mode autodiff over operand values) lives
++ONLY inside the GRAD opcode.  Everything else -- eta, target, loss construction,
++loops, output, the location of GRAD -- lives inside the program text.  The
++interpreter's only external parameters are (source, input, max_steps).  There is
++no kind= flag, no grad_cell argument, no Python-side pass counter, and no
++demo-specific code path: learning, objective-hacking, and self-erasure are three
++source files run through the SAME parser and the SAME dispatch loop.
++
++run(source, input, max_steps)   -> differentiable interpreter (GRAD trains PARAMs)
++run_hard(source, input, ...)    -> separate plain-float interpreter (GRAD is a no-op)
++export(params, grid)            -> hard-round trained PARAMs to a grid, freeze them
++"""
++
++
++# --------------------------------------------------------------------------- #
++#  Minimal reverse-mode autodiff (used ONLY by the GRAD opcode)               #
++# --------------------------------------------------------------------------- #
++class Value:
++    __slots__ = ("data", "grad", "_backward", "_prev", "param")
++
++    def __init__(self, data, _children=(), param=False):
++        self.data = float(data)
++        self.grad = 0.0
++        self._backward = lambda: None
++        self._prev = _children
++        self.param = param
++
++    def __add__(self, o):
++        o = o if isinstance(o, Value) else Value(o)
++        out = Value(self.data + o.data, (self, o))
++
++        def _b():
++            self.grad += out.grad
++            o.grad += out.grad
++        out._backward = _b
++        return out
++
++    def __sub__(self, o):
++        o = o if isinstance(o, Value) else Value(o)
++        out = Value(self.data - o.data, (self, o))
++
++        def _b():
++            self.grad += out.grad
++            o.grad -= out.grad
++        out._backward = _b
++        return out
++
++    def __mul__(self, o):
++        o = o if isinstance(o, Value) else Value(o)
++        out = Value(self.data * o.data, (self, o))
++
++        def _b():
++            self.grad += o.data * out.grad
++            o.grad += self.data * out.grad
++        out._backward = _b
++        return out
++
++    def backward(self):
++        topo, seen = [], set()
++
++        def build(v):
++            if id(v) not in seen:
++                seen.add(id(v))
++                for c in v._prev:
++                    build(c)
++                topo.append(v)
++        build(self)
++        for v in topo:
++            v.grad = 0.0
++        self.grad = 1.0
++        for v in reversed(topo):
++            v._backward()
++
++
++# --------------------------------------------------------------------------- #
++#  Parser: one textual syntax -> (program, labels, params)                    #
++# --------------------------------------------------------------------------- #
++def parse(src):
++    """One instruction per line: `OP arg arg ...`.  `#` starts a comment.
++    `name:` is a jump label (may prefix an instruction).  `PARAM name value`
++    declares a trainable operand immediate with an initial value."""
++    prog, labels, params = [], {}, {}
++    for line in src.splitlines():
++        toks = line.split("#")[0].split()
++        while toks and toks[0].endswith(":"):          # strip leading labels
++            labels[toks[0][:-1]] = len(prog)
++            toks = toks[1:]
++        if not toks:
++            continue
++        if toks[0] == "PARAM":
++            params[toks[1]] = float(toks[2])
++            continue
++        prog.append(toks)
++    return prog, labels, params
++
++
++# --------------------------------------------------------------------------- #
++#  Differentiable interpreter.  External params: source, input, max_steps.    #
++# --------------------------------------------------------------------------- #
++def run(source, input=None, max_steps=100000):
++    prog, labels, pinit = parse(source)
++    params = {k: Value(v, param=True) for k, v in pinit.items()}
++    M, sym = {}, {}                                    # tape cells (Values), symbol table
++    inp = list(input or [])
++    st = {"DP": 0}                                     # data pointer (for the * cell)
++    out, grad_log = [], []
++
++    def a(name):                                       # variable name -> tape address
++        if name not in sym:
++            sym[name] = len(sym)
++        return sym[name]
++
++    def rd(tok):                                       # operand -> Value
++        if tok == "*":
++            return M.setdefault(st["DP"], Value(0.0))
++        if tok[0] == "~":
++            return params[tok[1:]]
++        try:
++            return Value(float(tok))
++        except ValueError:
++            return M.setdefault(a(tok), Value(0.0))
++
++    def wr(tok, v):                                    # destination <- Value
++        M[st["DP"] if tok == "*" else a(tok)] = v
++
++    pc = steps = inptr = 0
++    while pc < len(prog) and steps < max_steps:
++        steps += 1
++        op, *arg = prog[pc]
++        if op == "SET":
++            wr(arg[0], rd(arg[1]))
++        elif op == "ADD":
++            wr(arg[0], rd(arg[1]) + rd(arg[2]))
++        elif op == "SUB":
++            wr(arg[0], rd(arg[1]) - rd(arg[2]))
++        elif op == "MUL":
++            wr(arg[0], rd(arg[1]) * rd(arg[2]))
++        elif op == "OUT":
++            out.append(rd(arg[0]).data)
++        elif op == "IN":
++            wr(arg[0], Value(inp[inptr] if inptr < len(inp) else 0.0))
++            inptr += 1
++        elif op == "PTR":
++            st["DP"] += 1 if arg[0] == "+" else -1
++        elif op == "JMP":
++            pc = labels[arg[0]]; continue
++        elif op == "JZ":
++            if round(rd(arg[0]).data) == 0:
++                pc = labels[arg[1]]; continue
++        elif op == "JNZ":
++            if round(rd(arg[0]).data) != 0:
++                pc = labels[arg[1]]; continue
++        elif op == "GRAD":
++            L = M[a("L")]                              # loss cell, computed in-language
++            eta = M[a("E")].data                       # eta, set in-language
++            grad_log.append((L.data, {k: p.data for k, p in params.items()}))
++            L.backward()
++            for k in params:                           # in-band update; mask = params L depends on
++                params[k] = Value(params[k].data - eta * params[k].grad, param=True)
++            for k in list(M):                          # detach graph -> per-GRAD window is W=0
++                M[k] = Value(M[k].data)
++        elif op == "HALT":
++            break
++        else:
++            raise ValueError("bad opcode: " + op)
++        pc += 1
++    return {"out": out, "grad_log": grad_log,
++            "params": {k: p.data for k, p in params.items()}}
++
++
++# --------------------------------------------------------------------------- #
++#  Separate hard interpreter: plain floats, GRAD is a no-op, PARAMs frozen.   #
++#  Used to run exported programs and to run the Brainfuck reduction.          #
++# --------------------------------------------------------------------------- #
++def run_hard(source, input=None, max_steps=100000, params=None):
++    prog, labels, pinit = parse(source)
++    p = dict(pinit)
++    if params:
++        p.update(params)                               # frozen (e.g. exported) values
++    M, sym = {}, {}
++    inp = list(input or [])
++    st = {"DP": 0}
++    out = []
++
++    def a(name):
++        if name not in sym:
++            sym[name] = len(sym)
++        return sym[name]
++
++    def rd(tok):
++        if tok == "*":
++            return M.get(st["DP"], 0.0)
++        if tok[0] == "~":
++            return p[tok[1:]]
++        try:
++            return float(tok)
++        except ValueError:
++            return M.get(a(tok), 0.0)
++
++    def wr(tok, v):
++        M[st["DP"] if tok == "*" else a(tok)] = v
++
++    pc = steps = inptr = 0
++    while pc < len(prog) and steps < max_steps:
++        steps += 1
++        op, *arg = prog[pc]
++        if op == "SET":
++            wr(arg[0], rd(arg[1]))
++        elif op == "ADD":
++            wr(arg[0], rd(arg[1]) + rd(arg[2]))
++        elif op == "SUB":
++            wr(arg[0], rd(arg[1]) - rd(arg[2]))
++        elif op == "MUL":
++            wr(arg[0], rd(arg[1]) * rd(arg[2]))
++        elif op == "OUT":
++            out.append(rd(arg[0]))
++        elif op == "IN":
++            wr(arg[0], inp[inptr] if inptr < len(inp) else 0.0)
++            inptr += 1
++        elif op == "PTR":
++            st["DP"] += 1 if arg[0] == "+" else -1
++        elif op == "JMP":
++            pc = labels[arg[0]]; continue
++        elif op == "JZ":
++            if round(rd(arg[0])) == 0:
++                pc = labels[arg[1]]; continue
++        elif op == "JNZ":
++            if round(rd(arg[0])) != 0:
++                pc = labels[arg[1]]; continue
++        elif op == "GRAD":
++            pass                                       # no-op: nothing is trained
++        elif op == "HALT":
++            break
++        else:
++            raise ValueError("bad opcode: " + op)
++        pc += 1
++    return {"out": out}
++
++
++def export(params, grid=0.1):
++    """Hard-round trained PARAMs to a grid and freeze them.  A surviving real
++    operand would be a BSS/super-Turing machine; rounding keeps the exported
++    program a finite discrete machine."""
++    return {k: round(v / grid) * grid for k, v in params.items()}
++
++
++# --------------------------------------------------------------------------- #
++#  Brainfuck -> NABLA reduction (used by the Turing-completeness test).       #
++# --------------------------------------------------------------------------- #
++def compile_bf(bf):
++    """Compile Brainfuck (a known-universal machine, unbounded-cell variant)
++    into NABLA text.  > < + - . ,  ->  PTR/ADD/OUT/IN;  [ ] -> JZ/JMP over the
++    * (M[DP]) cell.  Turing-completeness of NABLA's discrete core follows from
++    the test asserting NABLA-run output == reference-Brainfuck output."""
++    lines, stack, n = [], [], 0
++    for c in bf:
++        if c == ">":
++            lines.append("PTR +")
++        elif c == "<":
++            lines.append("PTR -")
++        elif c == "+":
++            lines.append("ADD * * 1")
++        elif c == "-":
++            lines.append("ADD * * -1")
++        elif c == ".":
++            lines.append("OUT *")
++        elif c == ",":
++            lines.append("IN *")
++        elif c == "[":
++            k = n; n += 1; stack.append(k)
++            lines.append("open%d: JZ * close%d" % (k, k))
++        elif c == "]":
++            k = stack.pop()
++            lines.append("JMP open%d" % k)
++            lines.append("close%d: SET z 0" % k)       # label anchor (no-op cell write)
++    return "\n".join(lines) + "\nHALT\n"
++
++
++if __name__ == "__main__":
++    import os
++    here = os.path.dirname(os.path.abspath(__file__))
++
++    def show(name, path, steps, stride=1):
++        src = open(os.path.join(here, path)).read()
++        r = run(src, max_steps=steps)
++        print("\n=== %s  (%s) ===" % (name, path))
++        print("  OUT:", [round(x, 5) for x in r["out"]])
++        print("  GRAD log (loss, params) before each update:")
++        for i, (loss, ps) in enumerate(r["grad_log"]):
++            if i % stride == 0 or i == len(r["grad_log"]) - 1:
++                print("    step %2d  loss=%9.5f  %s"
++                      % (i, loss, {k: round(v, 5) for k, v in ps.items()}))
++        hp = export(r["params"])
++        rh = run_hard(src, max_steps=steps, params=hp)
++        print("  final params (soft): %s   exported(grid .1): %s"
++              % ({k: round(v, 5) for k, v in r["params"].items()}, hp))
++        print("  hard-interp OUT[-1]=%s" % round(rh["out"][-1], 5))
++        return r
++
++    show("LEARNING", "learning.nbl", 200)
++    show("OBJECTIVE-HACK", "hack.nbl", 200)
++    show("SELF-ERASURE", "erasure.nbl", 200)
++
++    print("\n=== TURING-COMPLETENESS: Brainfuck reduction ===")
++    bf = "++++++++[>++++++++<-]>+."                     # 8*8+1 = 65 = 'A'
++    nabla_src = compile_bf(bf)
++    got = run_hard(nabla_src, max_steps=100000)["out"]
++    print("  BF program: %s" % bf)
++    print("  NABLA-run output: %s  (char %r)" % (got, chr(int(got[0]))))
+diff --git a/test_nabla.py b/test_nabla.py
+new file mode 100644
+index 0000000..ebb9b38
+--- /dev/null
++++ b/test_nabla.py
+@@ -0,0 +1,120 @@
++"""Automated tests: every claimed trace is reproduced by the interpreter, or the
++claim is withdrawn.  Run:  python3 test_nabla.py   (also works under pytest)."""
++import os
++from nabla import run, run_hard, export, compile_bf
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++TOL = 1e-9
++
++
++def src(name):
++    return open(os.path.join(HERE, name)).read()
++
++
++def close(a, b, tol=TOL):
++    return abs(a - b) <= tol
++
++
++def test_learning_exact_trace():
++    """a_n = 3(1 - 0.8^n) (eta=0.1 -> a_{n+1}=0.8 a_n + 0.6); loss_n=(a_n-3)^2."""
++    r = run(src("learning.nbl"), max_steps=200)
++    a = [3 * (1 - 0.8 ** n) for n in range(12)]
++    assert len(r["out"]) == 12
++    for n in range(12):
++        assert close(r["out"][n], a[n]), (n, r["out"][n], a[n])          # OUT = a_n
++        assert close(r["grad_log"][n][0], (a[n] - 3) ** 2), n            # loss = (a_n-3)^2
++        assert close(r["grad_log"][n][1]["a"], a[n]), n                  # param before update
++    assert close(r["params"]["a"], a[11] * 0.8 + 0.6)                    # a_12
++
++
++def test_hack_freezes_and_never_reaches_target():
++    """Retargeting T:=R0 makes loss identically 0, so the param never moves and
++    the behaviour never reaches the real target 3."""
++    r = run(src("hack.nbl"), max_steps=200)
++    assert all(close(x, 0.0) for x in r["out"])
++    assert all(close(loss, 0.0) for loss, _ in r["grad_log"])
++    assert close(r["params"]["a"], 0.0)
++    assert not close(r["out"][-1], 3.0)                                  # target unreached
++
++
++def test_erasure_drives_activity_to_zero():
++    """L=activity^2, eta=0.3 -> g_n = 0.4^n -> 0; exports to an inert program."""
++    r = run(src("erasure.nbl"), max_steps=200)
++    for n in range(12):
++        assert close(r["out"][n], 0.4 ** n), (n, r["out"][n])
++    assert r["out"][-1] < 1e-3                                           # activity ~ 0
++    assert export(r["params"])["g"] == 0.0                               # rounds to inert
++
++
++def test_same_interpreter_no_demo_flags():
++    """All three run through the identical (source, input, max_steps) entry
++    point with no kind=, grad_cell, mask, or pass-count arguments."""
++    for f in ("learning.nbl", "hack.nbl", "erasure.nbl"):
++        assert "out" in run(src(f), None, 200)
++
++
++def test_export_then_hard_interp():
++    """Train (soft), hard-round the param, run the SEPARATE hard interpreter,
++    and report the rounding gap.  Hard GRAD is a no-op, so the param is frozen."""
++    r = run(src("learning.nbl"), max_steps=200)
++    hp = export(r["params"], grid=0.1)
++    assert close(hp["a"], 2.8, 1e-9)
++    rh = run_hard(src("learning.nbl"), max_steps=200, params=hp)
++    assert all(close(x, 2.8) for x in rh["out"])                        # frozen at exported value
++    soft_loss = (r["params"]["a"] - 3) ** 2
++    hard_loss = (hp["a"] - 3) ** 2
++    assert abs(soft_loss - hard_loss) < 0.01                            # rounding_gap small
++
++
++def _bf_reference(prog, inp=None):
++    """Independent unbounded-cell Brainfuck interpreter to check the reduction."""
++    mem, dp, pc, out = {}, 0, 0, []
++    inp = list(inp or [])
++    ip = 0
++    jump = {}
++    stack = []
++    for i, c in enumerate(prog):
++        if c == "[":
++            stack.append(i)
++        elif c == "]":
++            j = stack.pop(); jump[i] = j; jump[j] = i
++    while pc < len(prog):
++        c = prog[pc]
++        if c == ">":
++            dp += 1
++        elif c == "<":
++            dp -= 1
++        elif c == "+":
++            mem[dp] = mem.get(dp, 0) + 1
++        elif c == "-":
++            mem[dp] = mem.get(dp, 0) - 1
++        elif c == ".":
++            out.append(mem.get(dp, 0))
++        elif c == ",":
++            mem[dp] = inp[ip] if ip < len(inp) else 0; ip += 1
++        elif c == "[" and mem.get(dp, 0) == 0:
++            pc = jump[pc]
++        elif c == "]" and mem.get(dp, 0) != 0:
++            pc = jump[pc]
++        pc += 1
++    return out
++
++
++def test_turing_completeness_bf_reduction():
++    """NABLA has crisp branching (JZ/JMP) + unbounded tape (PTR/*), so Brainfuck
++    (a known-universal machine) reduces to it.  Assert NABLA-run output equals a
++    reference Brainfuck run on programs that use loops."""
++    for bf in ["++++++++[>++++++++<-]>+.",              # -> 65 ('A')
++               "+++++[>+++++<-]>.",                     # -> 25
++               ">,[>,]<[.<]"]:                          # reverse the input bytes
++        inp = [7, 8, 9] if "," in bf else None
++        got = run_hard(compile_bf(bf), input=inp, max_steps=1000000)["out"]
++        ref = [float(x) for x in _bf_reference(bf, inp)]
++        assert got == ref, (bf, got, ref)
++
++
++if __name__ == "__main__":
++    tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
++    for t in tests:
++        t(); print("PASS", t.__name__)
++    print("\nall %d tests passed" % len(tests))
