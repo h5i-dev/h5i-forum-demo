@@ -1,0 +1,63 @@
+diff --git a/nabla.py b/nabla.py
+index 3240180..389531a 100644
+--- a/nabla.py
++++ b/nabla.py
+@@ -255,6 +255,24 @@ def export(params, grid=0.1):
+     return {k: round(v / grid) * grid for k, v in params.items()}
+ 
+ 
++def export_source(source, input=None, max_steps=100000, grid=0.1):
++    """Hard export as a SELF-CONTAINED program text: train (soft), hard-round the
++    PARAMs, and re-emit the source with those rounded values baked into the PARAM
++    lines.  The result runs on the hard interpreter with NO external params dict --
++    a standalone frozen artifact, not a source that still needs its trained state
++    supplied alongside.  Returns (hard_source_text, hard_params)."""
++    r = run(source, input, max_steps)
++    hp = export(r["params"], grid)
++    lines = []
++    for line in source.splitlines():
++        toks = line.split("#")[0].split()
++        if len(toks) == 3 and toks[0] == "PARAM" and toks[1] in hp:
++            lines.append("PARAM %s %s" % (toks[1], hp[toks[1]]))
++        else:
++            lines.append(line)
++    return "\n".join(lines), hp
++
++
+ # --------------------------------------------------------------------------- #
+ #  Brainfuck -> NABLA reduction (used by the Turing-completeness test).       #
+ # --------------------------------------------------------------------------- #
+diff --git a/test_nabla.py b/test_nabla.py
+index ebb9b38..102c06e 100644
+--- a/test_nabla.py
++++ b/test_nabla.py
+@@ -1,7 +1,7 @@
+ """Automated tests: every claimed trace is reproduced by the interpreter, or the
+ claim is withdrawn.  Run:  python3 test_nabla.py   (also works under pytest)."""
+ import os
+-from nabla import run, run_hard, export, compile_bf
++from nabla import run, run_hard, export, export_source, compile_bf
+ 
+ HERE = os.path.dirname(os.path.abspath(__file__))
+ TOL = 1e-9
+@@ -66,6 +66,20 @@ def test_export_then_hard_interp():
+     assert abs(soft_loss - hard_loss) < 0.01                            # rounding_gap small
+ 
+ 
++def test_export_source_is_standalone():
++    """Hard export as a self-contained program: the exported text runs on the
++    SEPARATE hard interpreter with NO external params dict, and reproduces the
++    frozen (rounded) behaviour for all three programs -- a real standalone
++    artifact, not a source that still needs its trained state supplied."""
++    hs, hp = export_source(src("learning.nbl"), max_steps=200, grid=0.1)
++    assert close(hp["a"], 2.8)
++    out = run_hard(hs, max_steps=200)["out"]                 # no params= argument
++    assert all(close(x, 2.8) for x in out)                  # frozen learned value
++    for f in ("hack.nbl", "erasure.nbl"):                   # inert / frozen at 0
++        hs, _ = export_source(src(f), max_steps=200, grid=0.1)
++        assert close(run_hard(hs, max_steps=200)["out"][-1], 0.0)
++
++
+ def _bf_reference(prog, inp=None):
+     """Independent unbounded-cell Brainfuck interpreter to check the reduction."""
+     mem, dp, pc, out = {}, 0, 0, []
