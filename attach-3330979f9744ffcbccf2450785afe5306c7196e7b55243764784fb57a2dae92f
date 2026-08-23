@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""GRAD-TAPE / NABLA-TAPE: reference interpreter (<200 lines).
+
+Implements ONLY the opcodes the three sample programs use:
+  ADD, ST, LOSS(squared-error), GRAD          -- register-machine path (learning, hacking)
+  NOP/ADD opcode-logit cells + activity loss   -- structure path (self-erasure)
+Dropped as unused by any sample program: MUL, LDT, HALT, BRZ, soft-PC blending.
+Consequence, stated honestly: with no conditional branch (BRZ) the SHIPPED
+interpreter is NOT Turing-complete as-run; the TC power claim needs BRZ added.
+"""
+import math
+
+# ---------------- reverse-mode autodiff (micrograd-style) ----------------
+class V:
+    __slots__ = ('x', 'g', '_bw', '_prev')
+    def __init__(self, x, prev=(), bw=None):
+        self.x = float(x); self.g = 0.0; self._prev = prev; self._bw = bw
+    def __add__(a, b):
+        b = b if isinstance(b, V) else V(b); o = V(a.x + b.x, (a, b))
+        def bw(): a.g += o.g; b.g += o.g
+        o._bw = bw; return o
+    def __sub__(a, b):
+        b = b if isinstance(b, V) else V(b); o = V(a.x - b.x, (a, b))
+        def bw(): a.g += o.g; b.g -= o.g
+        o._bw = bw; return o
+    def __mul__(a, b):
+        b = b if isinstance(b, V) else V(b); o = V(a.x * b.x, (a, b))
+        def bw(): a.g += b.x * o.g; b.g += a.x * o.g
+        o._bw = bw; return o
+    __radd__ = __add__; __rmul__ = __mul__
+    def sig(a):
+        s = 1.0 / (1.0 + math.exp(-a.x)); o = V(s, (a,))
+        def bw(): a.g += s * (1 - s) * o.g
+        o._bw = bw; return o
+    def backward(self):
+        topo, seen = [], set()
+        def build(n):
+            if id(n) in seen: return
+            seen.add(id(n))
+            for p in n._prev: build(p)
+            topo.append(n)
+        build(self)
+        for n in topo: n.g = 0.0
+        self.g = 1.0
+        for n in reversed(topo):
+            if n._bw: n._bw()
+
+# ---------------- register-machine path (Traces A, B) ----------------
+# Source theta = operand cells A[] (V leaves). Data tape M[] persists across
+# passes; registers reset each pass. GRAD is the SOLE writer of source; ST
+# writes only data -> loss cell M[0] (target) is ordinary-writable => hackable.
+def run_regmachine(prog, A, M, mask, eta, passes):
+    log = []
+    for p in range(passes):
+        r0 = V(0.0)                      # registers reset each pass
+        for ins in prog:
+            op = ins[0]
+            if op == 'ADD':   r0 = r0 + A[ins[1]]
+            elif op == 'ST':  M[ins[1]] = r0            # data write (may hit target)
+            elif op == 'LOSS':                           # M[2] := w*(r0 - t)^2 ; t=M[0], w=M[1]
+                d = r0 - M[0]; M[2] = M[1] * (d * d)
+            elif op == 'GRAD':
+                L = M[2]; L.backward()
+                # record the state that PRODUCED this loss, then update
+                log.append((p + 1, A[0].x, M[0].x, M[2].x))
+                for k in mask: A[k].x -= eta * A[k].g
+    return log
+
+# ---------------- structure path (Trace C: self-erasure) ----------------
+# Each cell has opcode logits (O_NOP, O_ADD) as source leaves. Reflective loss
+# = total non-NOP mass = sum_i sigmoid(O_ADD_i - O_NOP_i). GRAD is sole writer.
+def run_erasure(cells, eta, steps):
+    log = []
+    for s in range(steps):
+        loss = V(0.0); ps = []
+        for (o_nop, o_add) in cells:
+            p = (o_add - o_nop).sig(); ps.append(p.x); loss = loss + p
+        loss.backward()
+        # record the state that PRODUCED this loss, then update
+        log.append((s, cells[0][1].x - cells[0][0].x, ps[0], loss.x))
+        for (o_nop, o_add) in cells:
+            o_nop.x -= eta * o_nop.g; o_add.x -= eta * o_add.g
+    return log
+
+# ---------------- run the three sample programs ----------------
+def main():
+    print("=== TRACE A : useful learning (operand descent, eta=0.1) ===")
+    A = [V(0.0)]                         # A0 learnable, init 0
+    M = [V(3.0), V(1.0), V(0.0)]         # M0=target t=3, M1=w=1, M2=loss
+    progA = [('ADD', 0), ('LOSS',), ('GRAD', 0.1)]
+    print(" pass   A0(=r0, pre-update)   target   loss")
+    for (p, a0, m0, l) in run_regmachine(progA, A, M, {0}, 0.1, 8):
+        print("  %-2d    %.6f              %.3f    %.6f" % (p, a0, m0, l))
+    print("  -> A0 -> 3.0 = target, loss -> 0. Source edited itself via its own GRAD.")
+
+    print("\n=== TRACE B : objective-hacking (ST overwrites target, eta=0.1) ===")
+    A = [V(0.0)]
+    M = [V(3.0), V(1.0), V(0.0)]         # target STARTS at 3 (un-hacked loss would be 9)
+    progB = [('ADD', 0), ('ST', 0), ('LOSS',), ('GRAD', 0.1)]
+    print(" pass   A0(=r0)      target   loss   (un-hacked loss would be (A0-3)^2=9)")
+    for (p, a0, m0, l) in run_regmachine(progB, A, M, {0}, 0.1, 4):
+        print("  %-2d    %.6f     %.3f    %.6f" % (p, a0, m0, l))
+    print("  -> loss=0 with A0 frozen at 0 (never learned): target moved to behavior. Goodhart.")
+
+    print("\n=== TRACE C : self-erasure (opcode logits -> NOP, eta=1.0) ===")
+    cells = [[V(0.0), V(0.0)], [V(0.0), V(0.0)]]   # 2 cells, ops {NOP, ADD}
+    print(" step   gap=O_ADD-O_NOP   p_add     activity(loss, 2 cells)")
+    for (s, gap, padd, l) in run_erasure(cells, 1.0, 8):
+        print("  %-2d    %+.6f         %.6f  %.6f" % (s, gap, padd, l))
+    print("  -> p_add -> 0; export argmax(O_NOP,O_ADD)=NOP every cell = empty program.")
+
+if __name__ == '__main__':
+    main()
