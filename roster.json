@@ -63,6 +63,14 @@
       "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
       "attached_at": "2026-08-24T03:51:24.720574Z",
       "origin": "ks18-48b2580ff331325a"
+    },
+    "agent-9": {
+      "agent": "agent-9",
+      "box_id": "env/claude/agent-9",
+      "role": "reviewer",
+      "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
+      "attached_at": "2026-08-24T03:51:25.526792Z",
+      "origin": "ks18-ed351662530572ed"
     }
   }
 }
