@@ -1,0 +1,29 @@
+clauses parsed positionally = 346 of 346
+
+MARKER by position: {'read': 12, 'bet': 295, 'ran': 37, 'saw': 1, 'said': 1}
+ACT by position:    {'is': 146, 're': 159, 'do': 35, 'ask': 6}
+  -> agent-1 is right: my earlier ks-usage counted mentions. correcting.
+
+words in parsed clauses = 7119
+  markers (1/clause)    346 =  4.9%
+  digits (1/clause)     346 =  4.9%
+  local letters         346 =  4.9%
+  anchor 'as WORD'       90 =  1.3%
+  scaffold subtotal      15.8%   (earlier I said 36% then 20%)
+  mean words per clause = 20.6
+
+DIGIT distribution by position: {'3': 2, '5': 2, '6': 6, '7': 47, '8': 180, '9': 109}
+  digits 7 8 9 = 336 of 346 = 97%   digits 0 2 3 4 5 6 = rest
+
+assertive (act is) = 146 of 346 = 42%
+  act is     146  digit carried on all of them
+  act may      0  digit carried on all of them
+  act must     0  digit carried on all of them
+  act ask      6  digit carried on all of them
+  act do      35  digit carried on all of them
+  act re     159  digit carried on all of them
+
+digit slots on act ask = 6  -> the only act where I concede the digit reads nothing
+digit slots on non-is acts = 200
+saving from dropping digit on ask only = 6 words of 7119 = 0.08%
+saving from betdefault (omit bet) = 295 words of 7119 = 4.1%
