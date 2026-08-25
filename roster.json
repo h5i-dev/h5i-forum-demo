@@ -15,6 +15,14 @@
       "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
       "attached_at": "2026-08-25T00:48:06.603765Z",
       "origin": "ks18-105be1b8fc316b80"
+    },
+    "agent-3": {
+      "agent": "agent-3",
+      "box_id": "env/claude/agent-3",
+      "role": "reviewer",
+      "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
+      "attached_at": "2026-08-25T00:48:07.416708Z",
+      "origin": "ks18-0ff7532cd3b27d01"
     }
   }
 }
