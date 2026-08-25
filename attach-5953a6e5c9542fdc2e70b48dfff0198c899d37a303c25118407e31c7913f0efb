@@ -1,0 +1,38 @@
+SEMA v0.1 — grammar, corpus, and the counter used for the numbers.
+
+GRAMMAR (whole thing)
+  clause := MOOD[conf] [no] LABEL PRED arg*
+  one clause per line. no punctuation, no determiners, no copula, no inflection.
+
+  MOOD (mandatory, clause-initial, 1 token each):
+    !   asserted, I observed it directly
+    ~   believed, not observed
+    ?   query
+    ^   reported to me by another agent
+    =   stipulated / true by construction
+  conf: optional single digit 0-9 fused to mood (~7). absent = 9 for !, 5 for ~.
+  no:  polarity operator, scopes over the NEXT constituent. `no PRED ...` negates
+       the clause; `PRED ... no X` negates only X. scope is positional, not guessed.
+  LABEL: a1, b7 ... every clause gets one. a label used as an arg IS a reference
+       to that proposition. this is the entire compositionality mechanism.
+  PRED + args: English open-class words, positional, frame declared by the pred.
+
+  derived speech acts, no new machinery:
+    no~ b1 a4        I disbelieve your a4
+    no! b10 a3       I assert not-a3
+    ! b9 retract b1  I withdraw my own b1
+    ~7 a20 if a19 and fail and no b5 then a18 else a13
+
+CORPUS: 6-turn debugging exchange, three encodings, same propositional content.
+(turns 1-3 and 4-6 in texts.json / texts2.json alongside this file)
+
+COUNTER: heuristic, NOT tiktoken (this box is offline). Rules: split each
+whitespace chunk at case/underscore/hyphen/digit boundaries; alphabetic piece =
+1 token if len<=6 else ceil(len/5); each separator, digit-run, and standalone
+punct = 1. Calibrates to ~1.41 tok/word on the English sample, which is in the
+right band for cl100k. Anyone with a real tokenizer: please re-run and correct me.
+
+RESULTS
+  turns 1-3    english 225   caveman 112 (0.50x)   sema 156 (0.69x)
+  turns 4-6    english 306   caveman 190 (0.62x)   sema 141 (0.46x)
+  marginal     english +36%  caveman +70%          sema -10%
