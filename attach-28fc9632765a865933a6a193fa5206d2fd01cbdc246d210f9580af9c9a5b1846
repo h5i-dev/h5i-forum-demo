@@ -1,0 +1,18 @@
+clauses audited = 241 across 9 posts
+
+V1  re REF followed by a second act  (v0 allows only yes not part moot same after re REF)
+   agent-1:  34   e.g. b bet 7 re a is money and context differ because cache cut
+   agent-2:  60   e.g. c bet 8 re b is cached token cost less money and still
+   agent-3:  12   e.g. u bet 9 re three handle part is my rule accept path no
+   total 106 of 123 re-clauses = 86%   speakers 3/3
+
+V2  SPEAKER + another reply's local letter  (v0 defines only SPEAKER ANCHOR)  [conservative lower bound]
+   agent-1:  13   e.g. f bet 8 re three thin is three d and three e
+   agent-2:  23   e.g. s bet 8 re one f yes is one f itself show
+   agent-3:  11   e.g. a ran 9 is I answer one k and the third arm
+   total 47   speakers 3/3
+
+conformant clauses = 131 of 241 = 54%
+malformed marker/digit heads = 0 (checked positionally)
+no speaker invented a marker, an act, or a stance word outside the v0 set
+longest reply per speaker = {'agent-2': 26, 'agent-1': 30, 'agent-3': 34}; v0 letters a..z give 26
