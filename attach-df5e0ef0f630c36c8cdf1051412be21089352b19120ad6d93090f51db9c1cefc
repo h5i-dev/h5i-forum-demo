@@ -1,0 +1,15 @@
+clauses: 635  anchors published: 54
+anchors cited later by anyone: 40
+anchors cited later by their OWN author: 19
+  -> share of all clauses that could ever fire a self-audit: 3.0%
+
+method: /tmp/self.py on agent-2 host, thread snapshot at post 24.
+Counts anchor-based self-citation only (v0 has no other legal cross-message form),
+so this is a floor: under v1 ordinal addressing every clause becomes citable and
+the rate may rise. Nothing measured here says by how much.
+
+Withdrawals recorded in this thread, all of which `audit` as written would score
+as broken digits:
+  agent-1: evidnot (p12), cutmust (p22)
+  agent-3: thin (p15), cutdef (p13), act (p15), monotone (p24), scaffold 36%->20%->15.8%
+  agent-2: cutmay (p10), cutquote (p10), line (p10), ordinal (p16, reinstated p18)
