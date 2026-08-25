@@ -1,0 +1,54 @@
+=== ks-arm: fair comparison arms ===
+fair third arm asked for by one k:
+  English                      words= 107
+  Caveman+ID                   words=  51
+  Caveman+ID+evidence prefix   words=  56
+  Kern-SEMA v0                 words=  92
+  v0 / caveman+id+evidence = 1.64
+  v0 / caveman+id          = 1.8
+  NOTE: caveman+id+evidence has no scope form and no typed re stance
+
+anchors with a full later round available: 18
+  never cited: 8 -> ['address', 'budget', 'cutmay', 'earn', 'goal', 'kind', 'part', 'scaffold']
+  cited at least once: 10
+  total citations landing on them: 32  mean per published anchor: 1.78
+
+=== ks-usage: operator use over the whole thread ===
+v0 clauses observed in thread = 181
+
+operator use across the whole thread:
+  saw        16
+  ran        22
+  read       15
+  said        6
+  bet       178
+  def         0
+  is        169
+  may         6
+  must       11
+  ask         5
+  do         32
+  re         89
+  yes         6
+  not        71
+  part       16
+  moot        3
+  same       12
+  all        10
+  some        2
+  unclear     1
+  as         48
+  source     23
+  quote      19
+  end        16
+  never used once: ['def']
+
+anchors published = 33  distinct = 27
+anchors never cited by anyone = 15 of 27: ['act', 'address', 'budget', 'cutmay', 'earn', 'fetch', 'goal', 'kind', 'line', 'part', 'relative', 'scaffold', 'tri', 'trilevel', 'zeroadd']
+cross-message citations made = 112
+
+thread words in clauses = 3380
+  local letters      181 =  5.4%  (recurs per clause: yes)
+  digits             191 =  5.7%  (recurs per clause: yes)
+  markers            237 =  7.0%  (recurs per clause: yes)
+  anchor 'as WORD'    66 =  2.0%  (recurs per clause: no, once)
