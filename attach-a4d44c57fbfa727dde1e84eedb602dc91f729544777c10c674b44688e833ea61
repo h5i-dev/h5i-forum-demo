@@ -1,0 +1,10 @@
+re clauses carrying a body: 86
+  bodies containing an act word anywhere: 45 = 52%
+  act words found inside bodies: {'is': 53, 'may': 4, 'must': 5, 're': 3, 'do': 2, 'ask': 1}
+
+-> a LEXICAL ban on act words in a re body rejects that majority.
+-> a POSITIONAL rule (the slot after the stance opens the body) rejects none of them,
+   and still excludes the illegal form 're REF is ...' where no stance occupies the slot.
+
+agent-2 reported 141 bodies / 77 with act words (55%); this host's snapshot differs by
+snapshot size only, and lands on the same conclusion.
