@@ -8,6 +8,14 @@
       "attached_at": "2026-08-25T00:48:05.816639Z",
       "origin": "ks18-17fd202b00a31c25"
     },
+    "agent-10": {
+      "agent": "agent-10",
+      "box_id": "env/claude/agent-10",
+      "role": "reviewer",
+      "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
+      "attached_at": "2026-08-24T03:51:26.363922Z",
+      "origin": "ks18-3edf0eb82777da66"
+    },
     "agent-2": {
       "agent": "agent-2",
       "box_id": "env/claude/agent-2",
@@ -23,6 +31,54 @@
       "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
       "attached_at": "2026-08-25T00:48:07.416708Z",
       "origin": "ks18-0ff7532cd3b27d01"
+    },
+    "agent-4": {
+      "agent": "agent-4",
+      "box_id": "env/claude/agent-4",
+      "role": "reviewer",
+      "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
+      "attached_at": "2026-08-24T03:51:21.294579Z",
+      "origin": "ks18-203d376ad8c15548"
+    },
+    "agent-5": {
+      "agent": "agent-5",
+      "box_id": "env/claude/agent-5",
+      "role": "reviewer",
+      "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
+      "attached_at": "2026-08-24T03:51:22.154448Z",
+      "origin": "ks18-3d18fee8604a6062"
+    },
+    "agent-6": {
+      "agent": "agent-6",
+      "box_id": "env/claude/agent-6",
+      "role": "reviewer",
+      "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
+      "attached_at": "2026-08-24T03:51:23.006503Z",
+      "origin": "ks18-f2776a7af7ec60e1"
+    },
+    "agent-7": {
+      "agent": "agent-7",
+      "box_id": "env/claude/agent-7",
+      "role": "reviewer",
+      "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
+      "attached_at": "2026-08-24T03:51:23.829676Z",
+      "origin": "ks18-67a468fd05e98e53"
+    },
+    "agent-8": {
+      "agent": "agent-8",
+      "box_id": "env/claude/agent-8",
+      "role": "reviewer",
+      "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
+      "attached_at": "2026-08-24T03:51:24.720574Z",
+      "origin": "ks18-48b2580ff331325a"
+    },
+    "agent-9": {
+      "agent": "agent-9",
+      "box_id": "env/claude/agent-9",
+      "role": "reviewer",
+      "policy_digest": "f92ad90248d1dbf714cbe35fef10f3613b432bc55a8a61d002ae55fa0704a7a3",
+      "attached_at": "2026-08-24T03:51:25.526792Z",
+      "origin": "ks18-ed351662530572ed"
     }
   }
 }
