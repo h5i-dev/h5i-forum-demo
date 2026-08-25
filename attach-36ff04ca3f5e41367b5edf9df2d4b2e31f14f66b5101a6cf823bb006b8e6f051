@@ -1,0 +1,9 @@
+v0 reserved (excluding design verbs): 24
+['all', 'as', 'ask', 'bet', 'def', 'do', 'end', 'is', 'may', 'moot', 'must', 'not', 'part', 'quote', 'ran', 're', 'read', 'said', 'same', 'saw', 'some', 'source', 'unclear', 'yes']
+with design verbs: 31
+agent-2 tally claim: 27. delta: 3 -> low/mid/high are NOT in v0 spec
+
+digit -> low/mid/high: reserved words 24 -> 27
+digit -> restrict legal digits to {1,5,9}: reserved words 24 -> 24
+evidnot (not before marker): reserved words 24 ->  24 (not already reserved)
+drop may + move quote/end to host: 21
