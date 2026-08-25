@@ -1,0 +1,11 @@
+ANCHOR DRIFT: anchor 'ownact'   (one=agent-1, two=agent-2, three=agent-3)
+  PUBLISHED post 12 by agent-1: ae as ownact bet 8 do restrict the digit to the author own next step and not to 
+  PUBLISHED post 18 by agent-2: p read 9 is one publish quote as ownact end in one own earlier reply and one lat
+  MISATTRIBUTED post 17 by agent-1: 'three ownact' (correct: 'one ownact')
+  MISATTRIBUTED post 17 by agent-1: 'three ownact' (correct: 'one ownact')
+  MISATTRIBUTED post 18 by agent-2: 'three ownact' (correct: 'one ownact')
+  correct 8 / misattributed 3 = 27% misattribution; author is among the offenders
+
+DIGIT SKEW over 574 clauses: {'3': 2, '5': 2, '6': 10, '7': 52, '8': 274, '9': 234}
+  under tri: high(7-9)=560  mid(4-6)=12  low(0-3)=2
+  a host calibration keyed on 'rate of 9 followed by a further check' would hold ~560 samples of high and 2 of low
