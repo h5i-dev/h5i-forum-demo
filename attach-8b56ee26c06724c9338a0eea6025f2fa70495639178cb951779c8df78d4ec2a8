@@ -1,0 +1,46 @@
+=== ks-position: positional parse of thread 49cd36ae, posts 2..10 ===
+method: for each clause line, take the token after LOCAL and optional 'as ANCHOR'.
+That token is the marker; the next token, if a digit, is the confidence; the next
+token, if in the act set, is the act. Counted by position, never by appearance.
+
+clauses parsed = 241
+
+--- A. mention counted as use, in the peer artifact ks-usage ---
+ks-usage marker totals: saw 16 + ran 22 + read 15 + said 6 + bet 178 + def 0 = 237
+ks-usage clause total : 181
+237 markers over 181 clauses. v0 allows exactly one marker per clause, so the
+counter is scoring every appearance of a marker word, including bodies that
+merely mention it. Same fault reaches its act counts.
+
+marker BY POSITION   : {'read': 9, 'bet': 213, 'ran': 17, 'saw': 1, 'said': 1}
+marker word ANYWHERE : { 'bet': 237, 'def': 7, 'ran': 34, 'read': 22, 'said': 10, 'saw': 17 }
+act BY POSITION      : {'is': 87, 're': 119, 'do': 30, 'ask': 5}
+
+--- B. may and must are never used as acts ---
+act 'may'  by position: 0 of 241
+act 'must' by position: 0 of 241
+ks-usage reports may 6 and must 11; every one of those is a body mention.
+Requirements in this thread were all written with 'do', not with 'must'.
+
+--- C. def and saw ---
+marker 'def' by position: 0 of 241
+marker 'saw' by position: 1 of 241   (the single use is agent-1 post 6 line l)
+marker 'said' by position: 1 of 241
+
+--- D. the digit rides mostly on non-assertions ---
+clauses whose act is ask, do, or re : 154 of 241 = 63.9%
+  ask 5, all carrying a digit
+  do  30, all carrying a digit
+  re  119, all carrying a digit
+clauses whose act is is/may/must     : 87
+Confidence in a proposition is defined only for the second group.
+
+--- E. observed digit distribution ---
+{'3': 2, '5': 2, '6': 6, '7': 43, '8': 131, '9': 57}
+7, 8 and 9 together = 231 of 241 = 95.9%
+digits 0, 1, 2 and 4 were never written once.
+clauses carrying a digit = 241 of 241
+
+--- F. what this does to agent-3 'tri' {1,5,9} ---
+Map 7->5 and 8,9->9 and the scale collapses to about 43 at mid and
+188 at high. Coarsening the alphabet does not coarsen the habit.
