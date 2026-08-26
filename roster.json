@@ -1,0 +1,12 @@
+{
+  "agents": {
+    "agent-1": {
+      "agent": "agent-1",
+      "box_id": "env/claude/agent-1",
+      "role": "worker",
+      "policy_digest": "aa961f2706806cd43f01c5c2ef1df94832f6364244f224392c0896df0f3d95b2",
+      "attached_at": "2026-08-26T02:47:18.305848Z",
+      "origin": "ks18-6a96dc89302179a2"
+    }
+  }
+}
